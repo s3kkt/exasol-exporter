@@ -1,0 +1,166 @@
+---
+exasol_connections:
+  query: SELECT NVL(COUNT(*), 0) AS count FROM "$EXA_DBA_CONNECTIONS";
+  metrics:
+    - COUNT:
+        usage: COUNTER
+        description: The number of active connections in the cluster
+exasol_rows_count_selected:
+  query: |
+    select USER_NAME
+         , CAST(SESSION_ID AS varchar(20)) AS SESSION_ID
+         , CAST(STMT_ID AS varchar(20)) AS STMT_ID
+         , ROW_COUNT
+    from EXA_STATISTICS.EXA_DBA_AUDIT_SQL sq
+           inner join EXA_STATISTICS.EXA_DBA_AUDIT_SESSIONS ss
+                      using (SESSION_ID)
+    where STOP_TIME >= now() - interval '2' minute
+      and COMMAND_NAME in ('EXPORT', 'SELECT')
+      and USER_NAME not in ('DWHSYS', 'DATAQUALITY', 'ANTIFRAUD_USER', 'DI_AB_TESTS', 'ODBC-EXPORTER')
+      and OS_USER != 'tableau'
+      and USER_NAME not like '%_YD'
+  metrics:
+    - ROW_COUNT:
+        usage: GAUGE
+        description: Count of selected strings by user
+    - USER_NAME:
+        usage: LABEL
+    - SESSION_ID:
+        usage: LABEL
+    - STMT_ID:
+        usage: LABEL
+exasol_user_query_count:
+  query: |
+    SELECT USER_NAME as USER_NAME, COUNT(*) as COUNT
+    FROM EXA_STATISTICS.EXA_DBA_AUDIT_SQL sq
+           INNER JOIN EXA_STATISTICS.EXA_DBA_AUDIT_SESSIONS ss
+                      USING (SESSION_ID)
+    WHERE STOP_TIME >= NOW() - INTERVAL '2' MINUTE
+      AND COMMAND_NAME IN ('EXPORT', 'SELECT')
+      AND USER_NAME NOT IN ('DWHSYS', 'DATAQUALITY', 'ANTIFRAUD_USER', 'DI_AB_TESTS', 'ODBC-EXPORTER')
+      AND lower(SQL_TEXT) not like '%limit 100%'
+      AND lower(SQL_TEXT) not like '%limit 500%'
+      AND OS_USER != 'tableau'
+      AND USER_NAME NOT LIKE '%_YD'
+    GROUP BY USER_NAME;
+  metrics:
+    - COUNT:
+        usage: GAUGE
+        description: Count of requests by user
+    - USER_NAME:
+        usage: LABEL
+exasol_system_cpu:
+  query: |
+    select last_value(LAST_1MIN) as la1,
+           last_value(LAST_5MIN) as la5,
+           last_value(LAST_15MIN) as la15,
+           REGEXP_SUBSTR(last_value(RUNNING), '.+?(?=\/)') as processes_active,
+           REGEXP_SUBSTR(last_value(RUNNING), '(?<=\/).*') as processes_total
+    from sys.EXA_LOADAVG;
+  metrics:
+    - la1:
+        usage: GAUGE
+        description: CPU LA1
+    - la5:
+        usage: GAUGE
+        description: CPU LA5
+    - la15:
+        usage: GAUGE
+        description: CPU LA15
+    - processes_active:
+        usage: GAUGE
+        description: processes active
+    - processes_total:
+        usage: GAUGE
+        description: processes total
+exasol_system_load:
+  query: |
+    select last_value(LOAD) as load from EXA_STATISTICS.EXA_MONITOR_LAST_DAY;
+  metrics:
+    - load:
+        usage: GAUGE
+        description: load
+exasol_system_stat:
+  query: |
+    select last_value(LOAD) as load,
+           last_value(NVL(CPU, 0)) as cpu,
+           last_value(TEMP_DB_RAM) as temp_db_ram,
+           last_value(PERSISTENT_DB_RAM) as persistent_db_ram,
+           last_value(HDD_READ) as hdd_read,
+           last_value(HDD_WRITE) as hdd_write,
+           last_value(NET) as net,
+           last_value(SWAP) as swap,
+           last_value(NVL(LOCAL_READ_SIZE, 0)) as local_read_size,
+           last_value(NVL(LOCAL_READ_DURATION, 0)) as local_read_duration,
+           last_value(NVL(LOCAL_WRITE_SIZE, 0)) as local_write_size,
+           last_value(NVL(LOCAL_WRITE_DURATION, 0)) as slocal_write_duration,
+           last_value(NVL(REMOTE_READ_SIZE, 0)) as remote_read_size,
+           last_value(NVL(REMOTE_READ_DURATION, 0)) as remote_read_duration,
+           last_value(NVL(REMOTE_WRITE_SIZE, 0)) as remote_write_size,
+           last_value(NVL(REMOTE_WRITE_DURATION, 0)) as remote_write_duration,
+           last_value(NVL(CACHE_READ_SIZE, 0)) as cache_read_size,
+           last_value(NVL(CACHE_READ_DURATION, 0)) as cache_read_duration,
+           last_value(NVL(CACHE_WRITE_SIZE, 0)) as cache_write_size,
+           last_value(NVL(CACHE_WRITE_DURATION, 0)) as cache_write_duration
+    from EXA_STATISTICS.EXA_MONITOR_LAST_DAY;
+  metrics:
+    - load:
+        usage: GAUGE
+        description: load
+    - cpu:
+        usage: GAUGE
+        description: cpu
+    - temp_db_ram:
+        usage: GAUGE
+        description: temp_db_ram
+    - persistent_db_ram:
+        usage: GAUGE
+        description: persistent_db_ram
+    - hdd_read:
+        usage: GAUGE
+        description: hdd_read
+    - hdd_write:
+        usage: GAUGE
+        description: hdd_write
+    - net:
+        usage: GAUGE
+        description: net
+    - swap:
+        usage: GAUGE
+        description: swap
+    - local_read_size:
+        usage: GAUGE
+        description: local_read_size
+    - local_read_duration:
+        usage: GAUGE
+        description: local_read_duration
+    - local_write_size:
+        usage: GAUGE
+        description: local_write_size
+    - local_write_duration:
+        usage: GAUGE
+        description: local_write_duration
+    - remote_read_size:
+        usage: GAUGE
+        description: remote_read_size
+    - remote_read_duration:
+        usage: GAUGE
+        description: remote_read_duration
+    - remote_write_size:
+        usage: GAUGE
+        description: remote_write_size
+    - remote_write_duration:
+        usage: GAUGE
+        description: remote_write_duration
+    - cache_read_size:
+        usage: GAUGE
+        description: cache_read_size
+    - cache_read_duration:
+        usage: GAUGE
+        description: cache_read_duration
+    - cache_write_size:
+        usage: GAUGE
+        description: cache_write_size
+    - cache_write_duration:
+        usage: GAUGE
+        description: cache_write_duration
